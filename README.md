@@ -11,20 +11,7 @@ HMT is a memory-augmented framework that enables efficient long-context processi
 - 🔌 **Plug-and-Play**: Works with any decoder-only transformer (GPT, LLaMA, etc.)
 - 🚀 **Apple Silicon Optimized**: Full MPS (Metal Performance Shaders) support for M-series chips
 - 📊 **Memory Efficient**: O(L) memory complexity vs O(L²) for standard transformers
-
-## Project Status
-
-🚧 **Phase 1 Complete**: Project setup with Apple Silicon acceleration configured
-
-### Roadmap
-
-- [x] Phase 1: Project setup with uv + Python 3.12 + MPS support
-- [ ] Phase 2: Dataset preparation (WikiText-103)
-- [ ] Phase 3: Core HMT components implementation
-- [ ] Phase 4: Backbone model integration
-- [ ] Phase 5: Training infrastructure with BPTT
-- [ ] Phase 6: Evaluation and experiments
-- [ ] Phase 7: Scaling to larger models
+- 📝 **Documentation**: Comprehensive documentation and examples
 
 ## Setup Instructions
 
