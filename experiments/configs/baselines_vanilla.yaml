@@ -1,0 +1,93 @@
+# Vanilla Transformer Baseline Configuration
+# Paper Reference: Baseline in Tables 1, 5-7, Figure 4
+# arXiv:2405.06067v3 [cs.CL] 6 Feb 2025
+
+baseline:
+  name: "vanilla_transformer"
+  type: "vanilla"
+  description: "Standard full-attention transformer baseline"
+  purpose: |
+    Demonstrates the problem HMT solves:
+    - O(L²) complexity
+    - Poor long-context performance
+    - Memory intensive
+
+model:
+  backbone: "facebook/opt-350m"
+  use_pretrained_weights: true
+
+  # Vanilla-specific settings
+  max_length: 2048  # Typical limit for OPT/GPT-2
+  truncation_strategy: "tail"  # Keep most recent tokens
+
+  # Alternative strategies:
+  # - "head": Keep beginning of sequence
+  # - "middle": Keep middle portion
+  # - null: No truncation (will fail on long sequences)
+
+behavior:
+  # How vanilla handles different sequence lengths
+  short_sequences:  # len <= max_length
+    strategy: "full_attention"
+    complexity: "O(L²)"
+    notes: "Standard behavior, works fine"
+
+  long_sequences:  # len > max_length
+    strategy: "truncate"
+    complexity: "O(max_length²)"
+    notes: "Loses information beyond max_length"
+
+  very_long_sequences:  # len >> max_length
+    strategy: "truncate_or_fail"
+    notes: "May OOM or produce poor results"
+
+limitations:
+  - "Quadratic attention complexity: O(L²)"
+  - "Limited by positional encoding (typically 2048 tokens)"
+  - "Out-of-distribution on lengths > training length"
+  - "No explicit long-term memory mechanism"
+  - "Struggles on Figure 4 extrapolation test"
+
+expected_performance:
+  wikitext_103:
+    ppl: "~24.1"  # Worse than HMT's 21.3
+    notes: "Table 1 baseline"
+
+  long_context:
+    pattern: "degrading"
+    figure4_behavior: "PPL increases significantly"
+    notes: "Cannot handle long contexts well"
+
+  efficiency:
+    table5_speedup: "1.0×"  # Reference baseline
+    throughput: "Lower than HMT on long sequences"
+
+# Evaluation settings
+evaluation:
+  batch_size: 1
+  device: null  # Auto-detect
+
+  # For fair comparison with HMT
+  same_backbone: true
+  same_tokenizer: true
+  same_test_set: true
+
+reproducibility:
+  seed: 42
+  deterministic: true
+
+notes: |
+  The vanilla transformer is the primary baseline in the paper.
+
+  It represents the standard approach before HMT:
+  - Full self-attention over the entire context
+  - Limited to sequences up to max_position_embeddings
+  - Quadratic complexity makes long contexts impractical
+
+  HMT improves upon vanilla by:
+  1. Linear O(L) complexity through segmentation
+  2. Explicit memory retrieval for long-range dependencies
+  3. Better extrapolation to longer contexts (Figure 4)
+  4. Higher efficiency (Table 5: 1.5-2.4× speedup)
+
+  Use this baseline to validate HMT's advantages.

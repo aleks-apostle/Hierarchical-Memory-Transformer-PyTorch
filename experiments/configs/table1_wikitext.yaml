@@ -1,0 +1,72 @@
+# Table 1 Reproduction: WikiText-103 Evaluation
+# Paper Reference: Table 1, row 1 (OPT-350M on WikiText-103)
+# arXiv:2405.06067v3 [cs.CL] 6 Feb 2025
+
+experiment:
+  name: "table1_wikitext103_opt350m"
+  paper_reference: "Table 1 - WikiText-103"
+  description: "Reproduce WikiText-103 results with OPT-350M backbone"
+  reproducibility_notes: |
+    This config reproduces the first row of Table 1 from the paper.
+    Expected HMT perplexity: ~21.3 (paper reports 21.30)
+    Expected Vanilla perplexity: ~24.1 (degrades on long contexts)
+
+model:
+  backbone: "facebook/opt-350m"
+  checkpoint: "checkpoints/hmt_opt350m_wikitext_best.pt"
+  load_from_checkpoint: true
+
+hmt_config:
+  segment_length: 1024  # L - Table 7 specification for OPT-350M
+  num_memory_embeddings: 300  # N - Long-term memory cache size
+  sensory_memory_size: 32  # k - Sensory memory tokens
+  representation_length: 512  # j = L/2 - Auto-set if null
+  hidden_dim: 1024  # Auto-detected from backbone if null
+
+evaluation:
+  dataset: "wikitext-103"
+  split: "test"
+  batch_size: 1  # Small batch for long sequences
+  max_batches: null  # Evaluate on full test set
+
+  metrics:
+    - perplexity  # Primary metric (Table 1)
+    - loss  # Cross-entropy loss
+    - accuracy_top5  # Optional: Top-5 accuracy
+
+  use_memory: true  # HMT with full memory hierarchy
+
+baselines:
+  - name: "vanilla"
+    enabled: true
+    model_type: "vanilla"
+    max_length: 2048  # GPT-2/OPT typical limit
+    truncation_strategy: "tail"  # Keep most recent tokens
+
+  - name: "sliding_window"
+    enabled: true
+    model_type: "sliding_window"
+    window_size: 1024
+    stride: 512  # 50% overlap
+
+output:
+  results_dir: "results/paper_reproduction/table1/wikitext/"
+  save_predictions: false  # Don't save predictions (large files)
+  save_metrics: true
+  generate_plots: true
+  plot_formats: ["png", "pdf"]
+
+  # Table 1 formatting
+  export_latex: true
+  latex_precision: 2  # Decimal places for PPL
+
+reproducibility:
+  seed: 42
+  deterministic: true
+  device: null  # Auto-detect (MPS/CUDA/CPU)
+
+# Paper-specific validation
+validation:
+  paper_ppl: 21.30  # Expected PPL from Table 1
+  tolerance: 0.5  # ±0.5 PPL tolerance
+  warn_if_exceeds: true

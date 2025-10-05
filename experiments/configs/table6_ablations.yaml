@@ -1,0 +1,105 @@
+# Table 6 Reproduction: Ablation Studies - Memory Components
+# Paper Reference: Table 6 - Component Ablations
+# arXiv:2405.06067v3 [cs.CL] 6 Feb 2025
+
+experiment:
+  name: "table6_memory_ablations"
+  paper_reference: "Table 6 - Ablation Studies"
+  description: "Ablation study on memory components contribution"
+  reproducibility_notes: |
+    Tests the contribution of each HMT memory component:
+    1. No memory (baseline - just backbone)
+    2. Sensory memory only
+    3. Long-term memory only
+    4. Full HMT (sensory + short-term + long-term)
+
+    Demonstrates that memory retrieval is crucial for performance.
+
+model:
+  backbone: "facebook/opt-350m"
+  checkpoint: "checkpoints/hmt_opt350m_wikitext_best.pt"
+
+hmt_config:
+  segment_length: 1024
+  num_memory_embeddings: 300
+  sensory_memory_size: 32
+  representation_length: 512
+
+evaluation:
+  dataset: "wikitext-103"
+  split: "test"
+  batch_size: 1
+  max_batches: null  # Full evaluation
+
+  metric: "perplexity"  # Primary metric for ablations
+
+# Ablation configurations
+ablations:
+  - name: "no_memory"
+    description: "Baseline without any memory (just segmented backbone)"
+    config:
+      use_memory: false
+      sensory_memory_size: 0
+      num_memory_embeddings: 0
+
+  - name: "sensory_only"
+    description: "Only sensory memory (last k tokens from previous segment)"
+    config:
+      use_memory: false  # Disable retrieval
+      sensory_memory_size: 32  # Keep sensory
+      num_memory_embeddings: 0
+
+  - name: "longterm_only"
+    description: "Only long-term memory retrieval (no sensory)"
+    config:
+      use_memory: true  # Enable retrieval
+      sensory_memory_size: 0  # Disable sensory
+      num_memory_embeddings: 300
+
+  - name: "full_hmt"
+    description: "Full HMT with all components"
+    config:
+      use_memory: true
+      sensory_memory_size: 32
+      num_memory_embeddings: 300
+
+output:
+  results_dir: "results/paper_reproduction/table6/"
+  save_metrics: true
+  generate_plots: true
+
+  # Ablation-specific visualizations
+  plot_types:
+    - ablation_bars  # Bar chart: PPL for each config
+    - contribution_breakdown  # Stacked bar showing component contributions
+    - improvement_table  # Markdown table like Table 6
+
+  export_latex: true
+  latex_precision: 2
+
+reproducibility:
+  seed: 42
+  deterministic: true
+  device: null
+
+# Expected results (from paper if available)
+validation:
+  # Expected relative improvements
+  sensory_improvement: "~5%"  # Sensory vs no memory
+  longterm_improvement: "~10%"  # Long-term vs no memory
+  full_improvement: "~15%"  # Full HMT vs no memory
+
+notes: |
+  Table 6 validates the memory hierarchy design.
+
+  Key insights:
+  - Each component contributes to final performance
+  - Long-term memory retrieval provides largest gain
+  - Sensory memory ensures local continuity
+  - Full system achieves best performance
+
+  Ablation methodology:
+  1. Train each variant separately (or use same checkpoint with components disabled)
+  2. Evaluate on same test set
+  3. Compare perplexity
+  4. Compute relative improvements

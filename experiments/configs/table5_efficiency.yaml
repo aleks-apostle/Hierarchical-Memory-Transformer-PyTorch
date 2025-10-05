@@ -1,0 +1,98 @@
+# Table 5 Reproduction: Inference Time Comparison
+# Paper Reference: Table 5 - Efficiency Analysis
+# arXiv:2405.06067v3 [cs.CL] 6 Feb 2025
+
+experiment:
+  name: "table5_efficiency_comparison"
+  paper_reference: "Table 5 - Inference Time"
+  description: "Reproduce efficiency benchmarks showing HMT speedup"
+  reproducibility_notes: |
+    Table 5 shows HMT achieves 1.5-2.4× speedup over vanilla transformer.
+    Measures:
+    - Throughput (tokens/second)
+    - Latency (ms/batch)
+    - Speedup ratio
+
+model:
+  backbone: "facebook/opt-350m"
+  checkpoint: "checkpoints/hmt_opt350m_wikitext_best.pt"
+
+hmt_config:
+  segment_length: 1024
+  num_memory_embeddings: 300
+  sensory_memory_size: 32
+  representation_length: 512
+
+benchmarking:
+  dataset: "wikitext-103"  # Or use synthetic data for pure speed test
+  split: "test"
+
+  # Sequence lengths to benchmark
+  sequence_lengths: [1024, 2048, 4096]
+
+  # Benchmark parameters
+  num_warmup: 10  # Warmup iterations (not measured)
+  num_measure: 100  # Measurement iterations
+  batch_size: 1  # Typical inference batch size
+
+  # What to measure
+  metrics:
+    - tokens_per_second  # Throughput (primary for Table 5)
+    - seconds_per_batch  # Latency
+    - gpu_memory_mb  # Peak GPU memory (if available)
+
+baselines:
+  - name: "vanilla"
+    enabled: true
+    model_type: "vanilla"
+    max_length: 4096  # Test at max capacity
+
+  - name: "sliding_window"
+    enabled: true
+    model_type: "sliding_window"
+    window_size: 1024
+    stride: 512
+
+output:
+  results_dir: "results/paper_reproduction/table5/"
+  save_metrics: true
+  generate_plots: true
+
+  # Table 5 specific outputs
+  plot_types:
+    - throughput_comparison  # Bar chart: tokens/sec
+    - latency_comparison  # Bar chart: ms/batch
+    - speedup_chart  # Bar chart: speedup ratios
+
+  export_latex: true
+  latex_precision: 1  # Speedup to 1 decimal: "2.4×"
+
+reproducibility:
+  seed: 42
+  deterministic: true
+  device: null  # Use best available (MPS/CUDA)
+
+  # For fair comparison
+  same_backbone: true  # All models use same backbone weights
+  same_device: true  # All models on same device
+  synchronize: true  # Proper timing with device synchronization
+
+# Paper-specific validation
+validation:
+  expected_speedup_min: 1.5  # Paper reports 1.5-2.4×
+  expected_speedup_max: 2.4
+  warn_if_outside_range: true
+
+notes: |
+  Table 5 demonstrates HMT's efficiency advantage.
+
+  Key findings from paper:
+  - HMT faster than vanilla despite memory operations
+  - Speedup increases with sequence length
+  - O(L) complexity vs O(L²) for vanilla
+
+  Timing methodology:
+  1. Warmup phase (GPU optimization)
+  2. Synchronize device before/after each forward pass
+  3. Average over many iterations
+  4. Report mean ± std dev

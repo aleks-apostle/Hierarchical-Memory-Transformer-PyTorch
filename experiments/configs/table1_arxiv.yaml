@@ -1,0 +1,79 @@
+# Table 1 Reproduction: arXiv Evaluation
+# Paper Reference: Table 1 - arXiv dataset (technical papers)
+# arXiv:2405.06067v3 [cs.CL] 6 Feb 2025
+
+experiment:
+  name: "table1_arxiv_opt350m"
+  paper_reference: "Table 1 - arXiv"
+  description: "Reproduce arXiv results with OPT-350M backbone"
+  reproducibility_notes: |
+    arXiv dataset tests technical/scientific text understanding.
+    Papers contain mathematical notation and specialized vocabulary.
+    Evaluates domain adaptation capability.
+
+model:
+  backbone: "facebook/opt-350m"
+  checkpoint: "checkpoints/hmt_opt350m_arxiv_best.pt"
+  load_from_checkpoint: true
+
+hmt_config:
+  segment_length: 1024  # L
+  num_memory_embeddings: 300  # N
+  sensory_memory_size: 32  # k
+  representation_length: 512  # j = L/2
+
+evaluation:
+  dataset: "arxiv"
+  split: "test"
+  batch_size: 1
+
+  # arXiv specific
+  subject_area: "cs"  # Computer Science papers
+  min_paper_length: 512  # Minimum tokens
+  max_paper_length: 50000  # Maximum tokens
+  sample_papers: null  # Use all test papers
+
+  metrics:
+    - perplexity  # Primary metric (Table 1)
+    - loss
+
+  use_memory: true
+
+baselines:
+  - name: "vanilla"
+    enabled: true
+    model_type: "vanilla"
+    max_length: 2048
+    truncation_strategy: "tail"
+
+  - name: "sliding_window"
+    enabled: true
+    model_type: "sliding_window"
+    window_size: 1024
+    stride: 512
+
+output:
+  results_dir: "results/paper_reproduction/table1/arxiv/"
+  save_predictions: false
+  save_metrics: true
+  generate_plots: true
+  plot_formats: ["png", "pdf"]
+
+  export_latex: true
+  latex_precision: 2
+
+reproducibility:
+  seed: 42
+  deterministic: true
+  device: null
+
+# Paper-specific validation
+validation:
+  paper_ppl: null  # Fill in from paper if available
+  tolerance: 0.5
+  warn_if_exceeds: true
+
+notes: |
+  arXiv dataset: "scientific_papers" from HuggingFace.
+  Contains abstracts + full article text.
+  Good test for long-form technical content.

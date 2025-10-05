@@ -1,0 +1,155 @@
+# Figure 4 Reproduction: Long-Context Extrapolation
+# Paper Reference: Figure 4 - "Extrapolation to Longer Context"
+# arXiv:2405.06067v3 [cs.CL] 6 Feb 2025
+
+experiment:
+  name: "figure4_long_context_extrapolation"
+  paper_reference: "Figure 4"
+  description: "Reproduce long-context extrapolation results"
+  reproducibility_notes: |
+    Figure 4 shows a critical finding:
+    - HMT: PPL stays flat or improves as context length increases
+    - Vanilla: PPL degrades (exponential increase) beyond training length
+    - Sliding Window: Moderate degradation
+
+    This validates HMT's long-context capability.
+
+model:
+  backbone: "facebook/opt-350m"
+  checkpoint: "checkpoints/hmt_opt350m_wikitext_best.pt"
+
+hmt_config:
+  segment_length: 1024
+  num_memory_embeddings: 300
+  sensory_memory_size: 32
+  representation_length: 512
+
+evaluation:
+  dataset: "wikitext-103"
+  split: "test"
+
+  # Sequence lengths to test (x-axis of Figure 4)
+  sequence_lengths: [512, 1024, 2048, 4096, 8192, 16384]
+
+  # Sampling strategy
+  num_samples_per_length: 100  # More samples = smoother curves
+  sampling_strategy: "truncate"  # or "sample" for random windows
+
+  # What to measure (y-axis of Figure 4)
+  metric: "perplexity"
+
+baselines:
+  - name: "vanilla"
+    enabled: true
+    model_type: "vanilla"
+    max_length: 16384  # Test beyond training limit
+
+  - name: "sliding_window"
+    enabled: true
+    model_type: "sliding_window"
+    window_size: 1024
+    stride: 512
+
+output:
+  results_dir: "results/paper_reproduction/figure4/"
+  save_metrics: true
+  generate_plots: true
+
+  # Figure 4 specific plot settings
+  figure4_plot:
+    title: "Long-Context Extrapolation (Figure 4)"
+    xlabel: "Sequence Length (tokens)"
+    ylabel: "Perplexity"
+    xscale: "log"  # Log scale for x-axis (as in paper)
+    yscale: "linear"
+
+    # Line styles
+    hmt_style:
+      color: "blue"
+      marker: "o"
+      linestyle: "-"
+      linewidth: 2
+      label: "HMT (Ours)"
+
+    vanilla_style:
+      color: "red"
+      marker: "s"
+      linestyle: "--"
+      linewidth: 2
+      label: "Vanilla Transformer"
+
+    sliding_window_style:
+      color: "green"
+      marker: "^"
+      linestyle: "-."
+      linewidth: 2
+      label: "Sliding Window"
+
+    # Error bars
+    show_error_bars: true
+    error_bar_style: "std"  # Standard deviation
+
+    # Annotations
+    annotate_key_points: true
+    annotation_examples:
+      - seq_len: 8192
+        text: "HMT maintains performance"
+        model: "HMT"
+
+  export_formats: ["png", "pdf", "svg"]
+  dpi: 300  # Publication quality
+
+  # Data export
+  save_raw_data: true
+  data_format: "csv"  # For plotting in other tools
+
+reproducibility:
+  seed: 42
+  deterministic: true
+  device: null
+
+# Expected patterns (for validation)
+expected_patterns:
+  hmt:
+    pattern: "flat_or_improving"
+    description: "PPL should stay constant or decrease slightly"
+    max_ppl_increase: 0.5  # Allow small increase
+
+  vanilla:
+    pattern: "degrading"
+    description: "PPL should increase significantly beyond training length"
+    expected_degradation_8k: ">10%"  # At least 10% worse at 8192 vs 1024
+
+  sliding_window:
+    pattern: "moderate_degradation"
+    description: "PPL increases but less than vanilla"
+
+# Statistical analysis
+statistics:
+  compute_confidence_intervals: true
+  confidence_level: 0.95
+  test_significance: true  # Test if HMT significantly better
+  significance_test: "paired_t_test"
+
+notes: |
+  Figure 4 is one of the most important results in the paper.
+  It demonstrates HMT's key advantage: long-context extrapolation.
+
+  Why HMT succeeds where vanilla fails:
+  1. Memory retrieval: Access distant context without full attention
+  2. Segmentation: Process in chunks, avoiding position encoding issues
+  3. Hierarchical memory: Different time scales (sensory, short, long)
+
+  Reproducing this figure validates that your HMT implementation
+  correctly handles long contexts and doesn't degrade like baselines.
+
+  Methodology:
+  1. Create test sequences at each length
+  2. Evaluate each model at each length
+  3. Plot PPL vs length
+  4. Observe divergence: HMT flat, baselines increasing
+
+  Success criteria:
+  - HMT curve should be flat (±0.5 PPL)
+  - Vanilla should show clear degradation (>10% increase)
+  - Gap should widen with increasing length

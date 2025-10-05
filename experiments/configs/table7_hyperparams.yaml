@@ -1,0 +1,138 @@
+# Table 7 Reproduction: Hyperparameter Ablations
+# Paper Reference: Table 7 - Training Configuration Impact
+# arXiv:2405.06067v3 [cs.CL] 6 Feb 2025
+
+experiment:
+  name: "table7_hyperparameter_sweep"
+  paper_reference: "Table 7 - Hyperparameter Ablations"
+  description: "Study impact of key hyperparameters on performance"
+  reproducibility_notes: |
+    Sweeps over key HMT hyperparameters:
+    - L: Segment length (256, 512, 1024, 2048)
+    - N: Memory cache size (50, 100, 300, 500)
+    - k: Sensory memory size (0, 16, 32, 64, 128)
+
+    Identifies optimal configurations for different scenarios.
+
+model:
+  backbone: "facebook/opt-350m"
+  # Use checkpoints trained with different configs
+  checkpoint_pattern: "checkpoints/hmt_opt350m_{config_name}_best.pt"
+
+evaluation:
+  dataset: "wikitext-103"
+  split: "test"
+  batch_size: 1
+  metric: "perplexity"
+
+# Hyperparameter sweep configurations
+hyperparameter_sweeps:
+  # Sweep 1: Segment length (L)
+  segment_length:
+    name: "segment_length_sweep"
+    parameter: "segment_length"
+    values: [256, 512, 1024, 2048]
+    fixed_params:
+      num_memory_embeddings: 300
+      sensory_memory_size: 32
+
+  # Sweep 2: Memory cache size (N)
+  cache_size:
+    name: "cache_size_sweep"
+    parameter: "num_memory_embeddings"
+    values: [50, 100, 300, 500, 1000]
+    fixed_params:
+      segment_length: 1024
+      sensory_memory_size: 32
+
+  # Sweep 3: Sensory memory size (k)
+  sensory_size:
+    name: "sensory_memory_sweep"
+    parameter: "sensory_memory_size"
+    values: [0, 16, 32, 64, 128]
+    fixed_params:
+      segment_length: 1024
+      num_memory_embeddings: 300
+
+  # Sweep 4: Joint sweep (L, N) for heatmap
+  joint_sweep:
+    name: "segment_cache_joint"
+    parameters: ["segment_length", "num_memory_embeddings"]
+    segment_length_values: [256, 512, 1024, 2048]
+    cache_size_values: [50, 100, 300, 500]
+    fixed_params:
+      sensory_memory_size: 32
+
+output:
+  results_dir: "results/paper_reproduction/table7/"
+  save_metrics: true
+  generate_plots: true
+
+  # Sweep-specific visualizations
+  plot_types:
+    - line_plots  # PPL vs parameter value
+    - heatmaps  # Joint sweep: L vs N heatmap
+    - optimal_config_table  # Best configs for different constraints
+
+  export_latex: true
+  latex_precision: 2
+
+reproducibility:
+  seed: 42
+  deterministic: true
+  device: null
+
+# Optimal configurations from paper
+paper_optimal_configs:
+  opt_350m:
+    segment_length: 1024
+    num_memory_embeddings: 300
+    sensory_memory_size: 32
+    notes: "Table 7 row 1"
+
+  opt_2_7b:
+    segment_length: 512
+    num_memory_embeddings: 300
+    sensory_memory_size: 32
+    notes: "Table 7 row 2 - smaller segments for larger model"
+
+  llama2_7b:
+    segment_length: 256
+    num_memory_embeddings: 500
+    sensory_memory_size: 64
+    notes: "Table 7 row 3 - more memory for largest model"
+
+# Analysis guidelines
+analysis:
+  segment_length:
+    tradeoff: "Larger L = fewer segments = less memory overhead, but worse cache utilization"
+    recommendation: "L ∈ [512, 1024] for most cases"
+
+  cache_size:
+    tradeoff: "Larger N = more history, but diminishing returns and memory cost"
+    recommendation: "N = 300 is sweet spot (paper finding)"
+
+  sensory_memory:
+    tradeoff: "Larger k = better local continuity, but more computation per segment"
+    recommendation: "k = 32 balances continuity and efficiency"
+
+notes: |
+  Table 7 provides configuration guidelines for different models.
+
+  Key findings:
+  1. Segment length (L): 512-1024 works best
+     - Too small: excessive overhead
+     - Too large: poor cache utilization
+
+  2. Cache size (N): 300 is optimal
+     - Below 100: insufficient history
+     - Above 500: diminishing returns
+
+  3. Sensory memory (k): 32 is good default
+     - 0: discontinuity between segments
+     - >64: unnecessary overhead
+
+  4. Scaling pattern:
+     - Larger models → smaller L (more granular)
+     - Larger models → larger N (more capacity)
+     - Larger models → larger k (better continuity)

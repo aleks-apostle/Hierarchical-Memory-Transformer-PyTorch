@@ -1,0 +1,161 @@
+# Sliding Window Transformer Baseline Configuration
+# Paper Reference: Efficient baseline for comparison
+# arXiv:2405.06067v3 [cs.CL] 6 Feb 2025
+
+baseline:
+  name: "sliding_window_transformer"
+  type: "sliding_window"
+  description: "Efficient sliding window attention baseline"
+  purpose: |
+    Represents efficient long-context approach without explicit memory.
+    Shows that efficiency alone isn't enough - need memory retrieval.
+
+model:
+  backbone: "facebook/opt-350m"
+  use_pretrained_weights: true
+
+  # Sliding window specific
+  window_size: 1024  # Size of each attention window
+  stride: 512  # Overlap between windows (50%)
+
+  # Window size considerations:
+  # - Larger window: More context per window, but more compute
+  # - Smaller window: Faster, but less context
+  # - Typical: 512-1024 for OPT-350M
+
+  # Stride considerations:
+  # - Larger stride (less overlap): Faster, but may miss dependencies
+  # - Smaller stride (more overlap): Better context, but slower
+  # - Typical: window_size / 2 for 50% overlap
+
+behavior:
+  # How sliding window handles sequences
+  short_sequences:  # len <= window_size
+    strategy: "single_pass"
+    complexity: "O(L²)"  # Same as vanilla for short sequences
+    notes: "No windowing needed"
+
+  medium_sequences:  # window_size < len <= 2*window_size
+    strategy: "two_windows"
+    complexity: "O(2 * window_size²)"
+    notes: "Two overlapping windows"
+
+  long_sequences:  # len >> window_size
+    strategy: "multiple_windows"
+    complexity: "O(num_windows * window_size²) = O(L * window_size)"
+    notes: "Linear in sequence length!"
+
+  stitching:
+    method: "average_overlaps"
+    description: "Average logits in overlapping regions"
+
+advantages_over_vanilla:
+  - "Linear O(L) complexity in sequence length"
+  - "Can process arbitrarily long sequences"
+  - "No truncation needed"
+  - "More efficient than vanilla on long contexts"
+
+limitations_vs_hmt:
+  - "No explicit long-term memory retrieval"
+  - "Loses information between non-overlapping regions"
+  - "Cannot attend to distant context beyond window"
+  - "No hierarchical memory structure"
+
+expected_performance:
+  wikitext_103:
+    ppl: "~23.1"  # Between HMT (21.3) and vanilla (24.1)
+    notes: "Better than vanilla, worse than HMT"
+
+  long_context:
+    pattern: "moderate_degradation"
+    figure4_behavior: "PPL increases less than vanilla, more than HMT"
+    notes: "Efficient but loses global context"
+
+  efficiency:
+    table5_speedup: "~1.3×"  # Faster than vanilla
+    comparison: "HMT still faster (1.5-2.4×)"
+
+# Hyperparameter tuning
+hyperparameter_guidelines:
+  window_size:
+    small_256:
+      pros: "Fast, memory efficient"
+      cons: "Limited context per window"
+      use_case: "Very long sequences, resource constrained"
+
+    medium_512_1024:
+      pros: "Good balance"
+      cons: "Moderate resource usage"
+      use_case: "Most scenarios (default)"
+
+    large_2048:
+      pros: "More context per window"
+      cons: "Approaches vanilla complexity"
+      use_case: "When context within window is most important"
+
+  stride:
+    no_overlap:  # stride = window_size
+      overlap: "0%"
+      speed: "Fastest"
+      quality: "May miss cross-window dependencies"
+
+    half_overlap:  # stride = window_size / 2
+      overlap: "50%"
+      speed: "Balanced"
+      quality: "Good (default recommendation)"
+
+    high_overlap:  # stride = window_size / 4
+      overlap: "75%"
+      speed: "Slower"
+      quality: "Best, but approaching vanilla cost"
+
+# Recommended configurations
+recommended_configs:
+  fast:
+    window_size: 512
+    stride: 512  # No overlap
+    notes: "Fastest, may sacrifice some quality"
+
+  balanced:
+    window_size: 1024
+    stride: 512  # 50% overlap
+    notes: "Default recommendation"
+
+  quality:
+    window_size: 2048
+    stride: 1024  # 50% overlap
+    notes: "Better quality, higher cost"
+
+# Evaluation settings
+evaluation:
+  batch_size: 1
+  device: null
+
+  # For fair comparison
+  same_backbone: true
+  same_tokenizer: true
+  same_test_set: true
+
+reproducibility:
+  seed: 42
+  deterministic: true
+
+notes: |
+  Sliding window is a strong efficient baseline.
+
+  It shows that efficiency improvements (O(L) vs O(L²)) are not enough
+  to match HMT's performance. HMT achieves both:
+  1. Efficiency (through segmentation)
+  2. Long-range understanding (through memory retrieval)
+
+  Key differences from HMT:
+  - Sliding window: Local attention only (within window)
+  - HMT: Local attention + global memory retrieval
+
+  This baseline validates that HMT's memory mechanism provides
+  value beyond just computational efficiency.
+
+  In experiments, you should observe:
+  - Sliding window faster than vanilla
+  - Sliding window PPL between vanilla and HMT
+  - Sliding window degrades on very long contexts (Figure 4)
